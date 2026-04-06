@@ -15,9 +15,9 @@ st.title("🚀 金融数据集成处理系统")
 st.write("演示：多重执行防止 + 动态百分比 + 组件禁用")
 
 # 2. 操作禁止：当 processing 为 True 时，禁用按钮和输入框
-user_input = st.text_input(
-    "请输入 CSV 路径", 
-    placeholder="data_25cols.csv", 
+file_master = st.file_uploader(
+    "选择第一个 PDF 文件 (基准 25 列)", 
+    type="pdf", 
     disabled=st.session_state.processing
 )
 
