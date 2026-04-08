@@ -82,7 +82,7 @@ if st.session_state.pdf_result and not st.session_state.processing:
             file_name="audit_report.pdf",
             mime="application/pdf"
         )
-    
+
     with col_reset:
         if st.button("清除结果并重新开始"):
             st.session_state.pdf_result = None
