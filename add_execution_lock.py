@@ -1,94 +1,89 @@
 import streamlit as st
 import time
-import random
+from io import BytesIO
 
-# --- 1. 初始化 Session State ---
+# --- 1. 状态初始化 ---
 if 'processing' not in st.session_state:
     st.session_state.processing = False
+if 'error_msg' not in st.session_state:
+    st.session_state.error_msg = []
+if 'pdf_result' not in st.session_state:
+    st.session_state.pdf_result = None  # 用于存储生成的 PDF 字节流
 
-# 回调函数：点击按钮时第一时间锁住 UI
-def lock_ui():
-    st.session_state.processing = True
-
-# --- 2. 页面布局与输入区 ---
-st.set_page_config(page_title="金融監査システム", layout="centered")
-st.title("⚖️ 金融合規監査集成系统")
-
-# 模拟必需的选项（例如：选择审计级别）
-audit_type = st.radio(
-    "監査タイプを選択してください（必需）",
-    options=["未選択", "基本監査", "詳細解析"],
-    index=0,
-    disabled=st.session_state.processing
-)
-
-# 文件上传（必需）
-uploaded_file = st.file_uploader(
-    "監査対象のPDFをアップロードしてください", 
-    type="pdf",
-    disabled=st.session_state.processing
-)
-
-# --- 3. 触发与校验逻辑 ---
-# 使用 on_click=lock_ui 确保点击瞬间页面组件全部灰掉
-if st.button("監査プロセスを開始", on_click=lock_ui, disabled=st.session_state.processing, type="primary"):
-    
-    # --- 【关键点】校验逻辑 ---
-    # 如果不符合预设条件，我们需要“解锁”并退出
-    error_msg = None
-    if audit_type == "未選択":
-        error_msg = "監査タイプを選択してください。"
-    elif uploaded_file is None:
-        error_msg = "ファイルをアップロードしてください。"
-
-    if error_msg:
-        st.error(f"⚠️ 入力エラー: {error_msg}")
-        # 重置状态并停止，让用户重新选择
+# --- 2. 校验回调函数 ---
+def validate_and_start():
+    errors = []
+    if not st.session_state.get('audit_type'):
+        errors.append("「監査タイプ」を選択してください。")
+    if not st.session_state.get('priority_level'):
+        errors.append("「優先順位」を選択してください。")
+        
+    if errors:
+        st.session_state.error_msg = errors
         st.session_state.processing = False
-        # 这里不需要 st.rerun，因为我们想让错误信息显示在当前页面
-        # 后续代码由于 processing 为 False 不会执行
     else:
-        # --- 4. 核心处理区（里程碑模式） ---
-        st.info("🔄 処理を開始します。そのままお待ちください...")
-        
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        try:
-            # 里程碑 1
-            status_text.text("ステップ 1/3: データを読み込んでいます...")
-            progress_bar.progress(20)
-            time.sleep(1) # 模拟处理
+        st.session_state.error_msg = []
+        st.session_state.processing = True
+        st.session_state.pdf_result = None # 开始新任务，清空旧结果
 
-            # 里程碑 2：最耗时的 LLM 访问
-            status_text.text("ステップ 2/3: Gemini AI が解析中（これには時間がかかります）...")
-            with st.spinner("AIが思考中..."):
-                # 模拟进度波动
-                for p in range(21, 81, 5):
-                    time.sleep(random.uniform(0.2, 0.5))
-                    progress_bar.progress(p)
-            
-            # 里程碑 3
-            status_text.text("ステップ 3/3: 最終レポートを作成中...")
-            progress_bar.progress(100)
-            
-            st.success("✅ 監査が完了しました！")
-            st.balloons() # 庆祝动画
-            
-            # 这里可以放置下载按钮等
-            st.download_button("レポートをダウンロード", data="Audit Report Contents", file_name="report.txt")
+# --- 3. 界面布局 ---
+st.title("⚖️ 金融合规审计系统 (带下载功能)")
 
-        except Exception as e:
-            st.error(f"❌ 予期せぬエラーが発生しました: {e}")
+# 显示错误
+if st.session_state.error_msg:
+    for msg in st.session_state.error_msg:
+        st.error(msg)
+
+# 输入区域
+col1, col2 = st.columns(2)
+with col1:
+    st.radio("監査タイプ:", ["広告審査", "契約書確認"], index=None, key="audit_type", disabled=st.session_state.processing)
+with col2:
+    st.radio("優先順位:", ["高", "低"], index=None, key="priority_level", disabled=st.session_state.processing)
+
+# 执行按钮
+st.button("审计开始", on_click=validate_and_start, disabled=st.session_state.processing, type="primary")
+
+# --- 4. 核心处理逻辑 ---
+if st.session_state.processing:
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    try:
+        status_text.text("AI审计中...")
+        for i in range(1, 101):
+            time.sleep(0.02)
+            progress_bar.progress(i)
         
-        finally:
-            # 处理结束，释放全局锁
-            st.session_state.processing = False
-            # 按钮恢复可用状态
-            if not error_msg:
-                st.button("別のファイルを処理する")
+        # 模拟生成 PDF 字节流
+        # 在实际代码中，这里是你的 PDF 生成函数返回的 bytes
+        fake_pdf = BytesIO()
+        fake_pdf.write(b"This is a dummy audited PDF content.")
+        st.session_state.pdf_result = fake_pdf.getvalue()
+        
+        st.success("✅ 审计完成！报告已准备好下载。")
+        
+    finally:
+        st.session_state.processing = False
+        # 💡 这里不执行 rerun，为了让成功信息和下载按钮保持显示
+        # 但 UI 已经通过状态恢复，可以再次选择了
 
-else:
-    # 初始状态下的提示
-    if not st.session_state.processing:
-        st.write("📢 上記の項目を入力し、ボタンを押してください。")
+# --- 5. 结果显示与下载区域 ---
+if st.session_state.pdf_result and not st.session_state.processing:
+    st.divider()
+    st.markdown("### 📄 审计报告下载")
+    
+    col_dl, col_reset = st.columns([1, 1])
+    
+    with col_dl:
+        st.download_button(
+            label="📥 下载 PDF 报告",
+            data=st.session_state.pdf_result,
+            file_name="audit_report.pdf",
+            mime="application/pdf"
+        )
+    
+    with col_reset:
+        if st.button("清除结果并重新开始"):
+            st.session_state.pdf_result = None
+            st.rerun()
